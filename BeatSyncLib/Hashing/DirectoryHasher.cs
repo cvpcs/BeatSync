@@ -1,6 +1,8 @@
 ﻿using BeatSaber.SongHashing;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -13,7 +15,8 @@ namespace BeatSyncLib.Hashing
         protected IBeatmapHasher Hasher;
         public event EventHandler<int>? CollectionRefreshed;
 
-        private ConcurrentDictionary<string, HashResult> Hashes = new ConcurrentDictionary<string, HashResult>();
+        private ConcurrentDictionary<string, HashResult> Hashes = new ConcurrentDictionary<string, HashResult>(StringComparer.OrdinalIgnoreCase);
+        private ConcurrentDictionary<string, FileSystemInfo> SongLocationMap = new ConcurrentDictionary<string, FileSystemInfo>(StringComparer.OrdinalIgnoreCase);
         public string DirectoryPath => _directory.FullName;
         private DirectoryInfo _directory { get; }
         public HashingState HashingState { get; private set; }
@@ -82,6 +85,8 @@ namespace BeatSyncLib.Hashing
                     {
                         if (!Hashes.TryAdd(hashResult.Hash, hashResult))
                             Logger.log?.Debug($"Duplicate beatmap: {dir.Name} | {hashResult.Hash}");
+                        else
+                            SongLocationMap[hashResult.Hash] = dir;
                     }
                     if (progress != null)
                     {
@@ -105,6 +110,8 @@ namespace BeatSyncLib.Hashing
                     {
                         if (!Hashes.TryAdd(hashResult.Hash, hashResult))
                             Logger.log?.Debug($"Duplicate beatmap: {zipFile.Name} | {hashResult.Hash}");
+                        else
+                            SongLocationMap[hashResult.Hash] = zipFile;
                     }
                     if (progress != null)
                     {
@@ -132,15 +139,18 @@ namespace BeatSyncLib.Hashing
                     if (hashResult.Hash != null && hashResult.Hash.Length > 0)
                     {
                         Hashes[hashResult.Hash] = hashResult;
+                        SongLocationMap[hashResult.Hash] = dir;
                     }
 
                     return hashResult;
                 }).ToArray());
         }
 
-        public bool HashExists(string hash)
-        {
-            return Hashes.ContainsKey(hash.ToUpper());
-        }
+        public bool HashExists(string hash) => Hashes.ContainsKey(hash);
+
+        public FileSystemInfo GetSongLocation(string hash) => HashExists(hash) ? SongLocationMap[hash] : null;
+
+        public IEnumerator<string> GetEnumerator() => Hashes.Keys.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => Hashes.Keys.GetEnumerator();
     }
 }

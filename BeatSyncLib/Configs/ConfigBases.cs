@@ -160,6 +160,8 @@ namespace BeatSyncLib.Configs
         [JsonIgnore]
         private PlaylistStyle? _playlistStyle;
         [JsonIgnore]
+        private int? _playlistMaxSongs;
+        [JsonIgnore]
         private BuiltInPlaylist? _feedPlaylist;
 
         [JsonIgnore]
@@ -170,6 +172,8 @@ namespace BeatSyncLib.Configs
         protected abstract bool DefaultCreatePlaylist { get; }
         [JsonIgnore]
         protected abstract PlaylistStyle DefaultPlaylistStyle { get; }
+        [JsonIgnore]
+        protected int DefaultPlaylistMaxSongs { get => 0; }
         [JsonIgnore]
         protected abstract BuiltInPlaylist DefaultFeedPlaylist { get; }
 
@@ -259,6 +263,32 @@ namespace BeatSyncLib.Configs
                 if (_playlistStyle == value)
                     return;
                 _playlistStyle = value;
+                SetConfigChanged();
+            }
+        }
+        [JsonProperty(Order = -60)]
+        public int PlaylistMaxSongs
+        {
+            get
+            {
+                if (_playlistMaxSongs == null)
+                {
+                    _playlistMaxSongs = DefaultPlaylistMaxSongs;
+                    SetConfigChanged();
+                }
+                return _playlistMaxSongs ?? DefaultPlaylistMaxSongs;
+            }
+            set
+            {
+                int newAdjustedVal = value;
+                if (value < 0)
+                {
+                    newAdjustedVal = DefaultPlaylistMaxSongs;
+                    SetInvalidInputFixed();
+                }
+                if (_playlistMaxSongs == newAdjustedVal)
+                    return;
+                _playlistMaxSongs = newAdjustedVal;
                 SetConfigChanged();
             }
         }

@@ -365,11 +365,19 @@ namespace BeatSyncLib.Downloader
             foreach (IPlaylist? playlist in playlists)
             {
                 playlist.Sort();
+                while(feedConfig.PlaylistMaxSongs > 0 && playlist.Count > feedConfig.PlaylistMaxSongs)
+                {
+                    playlist.RemoveAt(playlist.Count - 1);
+                }
                 playlist.RaisePlaylistChanged();
             }
             foreach (IPlaylist? playlist in recentPlaylists)
             {
                 playlist.Sort();
+                while (feedConfig.PlaylistMaxSongs > 0 && playlist.Count > feedConfig.PlaylistMaxSongs)
+                {
+                    playlist.RemoveAt(playlist.Count - 1);
+                }
                 playlist.RaisePlaylistChanged();
             }
         }

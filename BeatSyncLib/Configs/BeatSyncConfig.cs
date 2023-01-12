@@ -31,6 +31,8 @@ namespace BeatSyncLib.Configs
         [JsonIgnore]
         private int? _maxConcurrentDownloads;
         [JsonIgnore]
+        private int? _cleanSongUnplayedDays;
+        [JsonIgnore]
         private int? _recentPlaylistDays;
         [JsonIgnore]
         private bool? _allBeatSyncSongsPlaylist;
@@ -117,6 +119,31 @@ namespace BeatSyncLib.Configs
                 SetConfigChanged();
             }
         }
+        [JsonProperty(Order = -75)]
+        public int CleanSongUnplayedDays
+        {
+            get
+            {
+                if (_cleanSongUnplayedDays == null)
+                {
+                    _cleanSongUnplayedDays = 0;
+                    SetConfigChanged();
+                }
+                return _cleanSongUnplayedDays ?? 0;
+            }
+            set
+            {
+                int newAdjustedVal = value;
+                if (value < 0)
+                    newAdjustedVal = 0;
+                if (value != newAdjustedVal)
+                    SetInvalidInputFixed();
+                if (_cleanSongUnplayedDays == newAdjustedVal)
+                    return;
+                _cleanSongUnplayedDays = newAdjustedVal;
+                SetConfigChanged();
+            }
+        } // Remember to change SyncSaberService to add date to playlist entry
         [JsonProperty(Order = -70)]
         public int RecentPlaylistDays
         {

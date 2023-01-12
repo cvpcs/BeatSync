@@ -1,4 +1,5 @@
-﻿using BeatSaberPlaylistsLib;
+﻿using BeatSaberDataProvider.DataProviders;
+using BeatSaberPlaylistsLib;
 using BeatSaberPlaylistsLib.Blist;
 using BeatSaberPlaylistsLib.Legacy;
 using BeatSaberPlaylistsLib.Types;
@@ -105,6 +106,52 @@ namespace BeatSyncConsole
                 sw.Stop();
                 TimeSpan ts = sw.Elapsed;
                 Logger.log.Info($"Hashed {hashedCount} beatmaps in {Paths.GetRelativeDirectory(songsDirectory)} in {FormatTimeSpan(ts)}.");
+                if (config.BeatSyncConfig.CleanSongUnplayedDays > 0)
+                {
+                    Logger.log.Info($"Unplayed song cleanup configured. Removing unplayed songs that are older than {config.BeatSyncConfig.CleanSongUnplayedDays} days");
+                    sw.Reset();
+                    sw.Start();
+                    var playerDataProvider = new PlayerDataProvider();
+                    playerDataProvider.Initialize();
+                    var playedSongs = playerDataProvider.Data.Where(song => song.playCount > 0).Select(song => song.Hash).ToHashSet();
+                    var playlistSongs = playlistManager?.GetAllPlaylists(true).SelectMany(playlist => playlist.Select(song => song.Hash)).ToHashSet() ?? new HashSet<string?>();
+                    int deletedSongs = 0;
+                    var cutoff = DateTime.UtcNow.AddDays(config.BeatSyncConfig.CleanSongUnplayedDays * -1.0);
+                    foreach (string hash in songHasher)
+                    {
+                        var path = songHasher.GetSongLocation(hash);
+                        if (!playedSongs.Contains(hash) && // song has not been played
+                            !playlistSongs.Contains(hash) && // song is not on a playlist
+                            path.CreationTimeUtc < cutoff) // song is older than the cutoff
+                        {
+                            Logger.log.Info($"Deleting song: {path.Name}");
+                            try
+                            {
+                                if (path is DirectoryInfo)
+                                {
+                                    ((DirectoryInfo)path).Delete(true);
+                                }
+                                else
+                                {
+                                    path.Delete();
+                                }
+                                deletedSongs++;
+                            }
+                            catch (Exception e)
+                            {
+                                Logger.log.Error($"Error deleting song: {e.Message}");
+                            }
+                        }
+                    }
+                    if (deletedSongs > 0)
+                    {
+                        Logger.log.Info($"Refreshing beatmap hashes in '{Paths.GetRelativeDirectory(songsDirectory)}'...");
+                        await songHasher.RefreshHashesAsync(false, null, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    sw.Stop();
+                    ts = sw.Elapsed;
+                    Logger.log.Info($"Deleted {deletedSongs} songs in {FormatTimeSpan(ts)}.");
+                }
                 SongTarget songTarget = new DirectoryTarget(songsDirectory, overwriteTarget, unzipBeatmaps, songHasher, historyManager, playlistManager);
                 //SongTarget songTarget = new MockSongTarget();
                 jobBuilder.AddTarget(songTarget);
